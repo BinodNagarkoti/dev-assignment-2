@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Source_Code_Pro } from "next/font/google";
 import "./globals.css";
 import { AntdRegistry } from "@ant-design/nextjs-registry";
+import { Suspense } from "react";
 import AuthenticatedHeader from "@/components/authenticated-header";
 import { SessionProvider } from "@/lib/providers/dession-provider";
 import { QueryProvider } from "@/lib/providers/query-provider";
@@ -33,7 +34,7 @@ export default function RootLayout({
 					<QueryProvider>
 						<AntdRegistry>
 							<AuthenticatedHeader />
-							{children}
+							<Suspense>{children}</Suspense>
 						</AntdRegistry>
 					</QueryProvider>
 				</SessionProvider>

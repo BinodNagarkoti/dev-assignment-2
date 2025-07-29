@@ -229,9 +229,17 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
 		const inactiveUsers = users.filter(
 			(user) => user.status === "inactive"
 		).length;
-		const usersGroupedByMonth = Object.groupBy(users, (user) =>
-			user.created_at.toISOString().substring(0, 7)
-		); // Group by YYYY-MM
+		const usersGroupedByMonth = users.reduce(
+			(acc: Record<string, User[]>, user) => {
+				const monthKey = user.created_at.toISOString().substring(0, 7); // Extract YYYY-MM
+				if (!acc[monthKey]) {
+					acc[monthKey] = [];
+				}
+				acc[monthKey].push(user);
+				return acc;
+			},
+			{}
+		);
 
 		const currentMonth = new Date().toISOString().substring(0, 7);
 		const newUsersThisMonth = usersGroupedByMonth[currentMonth]
@@ -241,7 +249,7 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
 		const userGrowth = Object.entries(usersGroupedByMonth).map(
 			([month, usersInMonth]) => ({
 				month,
-				users: usersInMonth ? usersInMonth.length : 0,
+				users: (usersInMonth || []).length,
 			})
 		);
 
