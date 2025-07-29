@@ -43,7 +43,7 @@ export default function DocumentationLayoutClient({
 				}} // Slightly wider sidebar
 				width={280}
 			>
-				<div style={{ padding: "0 32px", marginBottom: "32px" }}>
+				<div style={{ padding: "0 28px", marginBottom: "32px" }}>
 					<Title level={2} style={{ margin: 0, color: "#333" }}>
 						Documentation
 					</Title>
