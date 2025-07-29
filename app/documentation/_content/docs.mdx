@@ -1,0 +1,409 @@
+# Project Documentation for Developers
+
+Welcome to the project! This document provides essential information for developers to understand the codebase, follow best practices, and contribute effectively. It aims to be a living document, so please contribute to its improvement.
+
+---
+
+## 1. Project Overview
+
+This project is a Next.js application built with the App Router, designed to manage user data and provide authentication functionalities. It leverages modern web technologies to deliver a performant and maintainable solution.
+
+---
+
+## 2. Core Technologies
+
+*   **Next.js (App Router):** The React framework for building full-stack web applications. It enables server-side rendering (SSR), static site generation (SSG), and API routes.
+*   **React:** The foundational JavaScript library for building user interfaces.
+*   **TypeScript:** A strongly typed superset of JavaScript that enhances code quality, readability, and maintainability by catching errors at compile time.
+*   **NextAuth.js:** A comprehensive authentication solution for Next.js applications, providing flexible and secure authentication strategies.
+*   **Ant Design (Ant React UI Kit):** A popular UI library for React, offering a rich set of enterprise-level components.
+*   **`js-cookie`:** A simple, lightweight JavaScript API for handling browser cookies.
+*   **`uuid`:** A utility for generating universally unique identifiers (UUIDs).
+*   **`react-markdown` & `remark-gfm`:** Used for rendering Markdown content within React components, enabling rich text documentation.
+
+---
+
+## 3. Project Structure & Key Directories
+
+The project adheres to a modular and organized structure to promote maintainability and scalability.
+
+*   **`/app`**: This directory is the heart of the Next.js App Router.
+    *   **Routing:** Each folder within `/app` defines a route segment (e.g., `/app/dashboard`, `/app/auth/login`).
+    *   `page.tsx`: Renders the primary UI for a given route. These are typically Server Components by default.
+    *   `layout.tsx`: Defines shared UI for a route segment and its children, allowing for persistent layouts.
+    *   `route.ts`: Handles API endpoints for specific routes (e.g., `GET`, `POST` requests).
+    *   **Example:**
+        ```
+        /app
+        ├── dashboard
+        │   ├── page.tsx             // Dashboard page
+        │   └── components
+        │       └── DashboardOverview.tsx // Dashboard specific component
+        └── auth
+            └── login
+                └── page.tsx         // Login page
+        ```
+
+*   **`/components`**: Contains reusable React components.
+    *   **Categorization:** Components are grouped into logical sub-directories (e.g., `ui`, `forms`, `layout`, `shared`, `specific-feature`) to improve discoverability and organization.
+    *   **Reusability:** Components are designed to be as generic and reusable as possible across different parts of the application.
+    *   **`index.ts`:** Used within component directories to export components, simplifying imports.
+    *   **Example:**
+        ```typescript
+        // components/ui/Button/index.ts
+        export { default as Button } from './Button';
+
+        // Usage:
+        // import { Button } from '@/components/ui';
+        ```
+
+*   **`/lib`**: Houses core application logic, utilities, hooks, and services.
+    *   `lib/utils`: Pure utility functions (e.g., data formatting, validation, helper functions).
+    *   `lib/hooks`: Custom React hooks for encapsulating reusable stateful logic.
+    *   `lib/auth`: Centralized authentication configurations and logic, including NextAuth.js setup and token management.
+    *   `lib/types`: Centralized TypeScript interfaces and types used throughout the project.
+    *   `lib/access-token-storage.ts`, `lib/refresh-token-storage.ts`: Modules for file-based storage of access and refresh tokens.
+
+---
+
+## 4. Authentication Flow: NextAuth.js with Manual Token Rotation
+
+This project implements a secure manual access token and refresh token rotation strategy using NextAuth.js. This approach enhances security and user experience.
+
+### Token Lifespans
+
+*   **Access Token:**
+    *   **Purpose:** Used to directly access protected resources (e.g., APIs, user data).
+    *   **Lifespan:** **Short-lived** (currently `ACCESS_TOKEN_EXPIRY_SECONDS` = 15 minutes).
+    *   **Security Rationale:** If an access token is intercepted, its limited lifespan minimizes the window of opportunity for an attacker to misuse it.
+*   **Refresh Token:**
+    *   **Purpose:** Used to obtain new access tokens after the current access token has expired, without requiring the user to re-authenticate.
+    *   **Lifespan:** **Long-lived** (currently `REFRESH_TOKEN_EXPIRY_SECONDS` = 15 minutes, but **ideally much longer in production**, e.g., days or weeks).
+    *   **Security Rationale:** Refresh tokens are typically stored more securely (e.g., HTTP-only cookies) and are only sent to the authorization server. They cannot directly access resources. This allows for extended user sessions while maintaining a high level of security.
+
+### Authentication Flow Logic
+
+The core authentication logic resides in [`lib/auth/config.ts`](lib/auth/config.ts) and [`lib/auth/config.utils.ts`](lib/auth/config.utils.ts).
+
+1.  **Initial Sign-in (`jwt` callback in `config.ts`):**
+    *   When a user successfully signs in, the `jwt` callback is invoked.
+    *   The `handleInitialSignIn` function in `config.utils.ts` is called to set up the initial access and refresh tokens.
+    *   **Code Snippet (`lib/auth/config.ts`):**
+        ```typescript
+        // lib/auth/config.ts
+        callbacks: {
+            async jwt({ token, user, account }) {
+                // Initial sign in
+                if (account && user) {
+                    return await handleInitialSignIn(token, user, account);
+                }
+                // ... (rest of jwt callback)
+            },
+            // ...
+        }
+        ```
+    *   **Code Snippet (`lib/auth/config.utils.ts` - `handleInitialSignIn`):**
+        ```typescript
+        // lib/auth/config.utils.ts
+        export async function handleInitialSignIn(token: JWT, user: any, account: any): Promise<JWT> {
+            const accessTokenObject = account?.access_token ? { token: account.access_token, expires: new Date(account.expires_at * 1000), userId: user?.id } : (await getAccessTokenByUserId(user?.id));
+            const refreshTokenObject = account?.refresh_token ? { token: account.refresh_token, expires: new Date(account.expires_at * 1000), userId: user?.id } : (await getRefreshTokenUseCase(user?.id));
+
+            return {
+                ...token,
+                accessToken: accessTokenObject?.token,
+                accessTokenExpires: account?.expires_at ? account.expires_at * 1000 : calculateExpiry(ACCESS_TOKEN_EXPIRY_SECONDS),
+                refreshToken: refreshTokenObject?.token,
+                refreshTokenExpires: account?.expires_at ? account.expires_at * 1000 : calculateExpiry(REFRESH_TOKEN_EXPIRY_SECONDS),
+                user: {
+                    id: user.id,
+                    name: user.name,
+                    email: user.email,
+                    image: user?.image ?? '',
+                },
+            } as JWT;
+        }
+        ```
+
+2.  **Access Token Refresh (`jwt` callback in `config.ts`):**
+    *   If the access token has expired (`Date.now() >= token.accessTokenExpires`), the `jwt` callback triggers a refresh.
+    *   The `refreshAccessToken` function in `config.utils.ts` is responsible for obtaining a new access token using the refresh token.
+    *   **Code Snippet (`lib/auth/config.ts`):**
+        ```typescript
+        // lib/auth/config.ts
+        callbacks: {
+            async jwt({ token, user, account }) {
+                // ... (initial sign in)
+
+                // Return previous token if the access token has not expired yet
+                if (token.accessTokenExpires && Date.now() < token.accessTokenExpires) {
+                    return token as JWT;
+                }
+
+                // Access token has expired, try to update it
+                const refreshedToken = await refreshAccessToken(token);
+                return refreshedToken as JWT;
+            },
+            // ...
+        }
+        ```
+    *   **Code Snippet (`lib/auth/config.utils.ts` - `refreshAccessToken`):**
+        ```typescript
+        // lib/auth/config.utils.ts
+        export async function refreshAccessToken(token: JWT): Promise<JWT> {
+            try {
+                if (!token.user?.id) {
+                    throw new Error("User ID not found in token for refresh.");
+                }
+
+                const refreshTokenObject = await getRefreshTokenUseCase(token.user.id);
+                const accessTokenObject = await getAccessTokenUseCase(token.user.id);
+
+                return {
+                    ...token,
+                    accessToken: accessTokenObject?.token,
+                    refreshToken: refreshTokenObject?.token,
+                    refreshTokenExpires: calculateExpiry(REFRESH_TOKEN_EXPIRY_SECONDS),
+                    accessTokenExpires: calculateExpiry(ACCESS_TOKEN_EXPIRY_SECONDS),
+                };
+            } catch (error) {
+                console.error("Error refreshing access token:", error);
+                return {
+                    ...token,
+                    error: "RefreshAccessTokenError",
+                };
+            }
+        }
+        ```
+
+### Token Storage (Important Note)
+
+*   **Current Implementation:** Tokens are currently stored in `refresh_token_data.json` and `access_token_data.json` using file-based storage (`fs` module).
+*   **Critical Consideration for Production:** This file-based storage is **NOT suitable for high-concurrency production environments**.
+    *   **Race Conditions:** Multiple concurrent requests attempting to read from and write to the same JSON files can lead to race conditions, data corruption, or lost updates.
+    *   **Scalability:** File I/O can become a bottleneck under heavy load.
+*   **Recommendation for Production:** For any production deployment, it is **highly recommended** to migrate token storage to a robust, concurrent-safe database solution (e.g., PostgreSQL, MongoDB, Redis). These systems are designed to handle concurrent operations, provide ACID properties, and ensure data integrity.
+
+---
+
+## 5. Performance and Optimization Guidelines
+
+Optimizing performance is crucial for a smooth user experience.
+
+*   **Server Components First:**
+    *   **Principle:** By default, Next.js App Router components are Server Components. Leverage this by performing data fetching and heavy computations on the server.
+    *   **Benefit:** Reduces client-side JavaScript bundle size, improves initial page load times, and enhances SEO.
+    *   **Usage:** Place data fetching logic directly in `async` Server Components.
+    *   **Example (`app/dashboard/page.tsx`):**
+        ```typescript
+        // app/dashboard/page.tsx (Server Component)
+        import { getDashboardData } from '@/lib/services/dashboard';
+
+        export default async function DashboardPage() {
+            const data = await getDashboardData(); // Data fetched on server
+            return (
+                <div>
+                    <h1>Dashboard</h1>
+                    <DashboardOverview data={data} />
+                </div>
+            );
+        }
+        ```
+
+*   **Client Component Usage (`'use client'`):**
+    *   **Principle:** Use Client Components only when interactivity, state management (e.g., `useState`, `useEffect`), or browser-specific APIs (e.g., `window`, event listeners) are required.
+    *   **Placement:** The `'use client'` directive must be at the very top of the file. Any component imported into a Client Component also becomes a Client Component.
+    *   **Boundary:** Define the client boundary as high as possible in the component tree to minimize client-side JavaScript.
+    *   **Example (`components/Counter.tsx`):**
+        ```typescript
+        // components/Counter.tsx (Client Component)
+        'use client';
+        import { useState } from 'react';
+
+        export default function Counter() {
+            const [count, setCount] = useState(0);
+            return (
+                <button onClick={() => setCount(count + 1)}>
+                    Count: {count}
+                </button>
+            );
+        }
+        ```
+
+*   **Image Optimization (`next/image`):**
+    *   **Tool:** Always use the `Image` component from `next/image` for both local and remote images.
+    *   **Benefits:** Automatic image optimization (resizing, format conversion to WebP/AVIF), lazy loading, and prevention of layout shifts (CLS).
+    *   **Example:**
+        ```typescript
+        import Image from 'next/image';
+
+        <Image src="/public/logo.png" alt="Logo" width={100} height={50} priority />
+        ```
+
+*   **Font Optimization (`next/font`):**
+    *   **Tool:** Use `next/font` to automatically optimize fonts.
+    *   **Benefits:** Eliminates external network requests for fonts, improves privacy, and ensures consistent font loading.
+    *   **Example (`app/layout.tsx`):**
+        ```typescript
+        import { Inter } from 'next/font/google';
+        const inter = Inter({ subsets: ['latin'] });
+
+        export default function RootLayout({ children }) {
+            return (
+                <html lang="en" className={inter.className}>
+                    <body>{children}</body>
+                </html>
+            );
+        }
+        ```
+
+*   **Lazy Loading Components (`next/dynamic`):**
+    *   **Principle:** Dynamically import components that are not immediately visible or critical for the initial page load.
+    *   **Benefits:** Reduces the initial JavaScript bundle size, improving Time to Interactive (TTI).
+    *   **Usage:**
+        ```typescript
+        import dynamic from 'next/dynamic';
+
+        const MyHeavyChart = dynamic(() => import('../components/MyHeavyChart'), {
+            loading: () => <p>Loading chart...</p>,
+            ssr: false // If component relies on browser APIs
+        });
+
+        export default function Page() {
+            return (
+                <div>
+                    <h1>Dashboard</h1>
+                    <MyHeavyChart />
+                </div>
+            );
+        }
+        ```
+
+*   **Memoization (React.memo, useCallback, useMemo):**
+    *   **`React.memo`:** Memoizes functional components to prevent re-renders if their props haven't changed.
+    *   **`useCallback`:** Memoizes functions passed as props to child components, preventing unnecessary re-creation of the function on parent re-renders.
+    *   **`useMemo`:** Memoizes expensive calculations or object/array creations, preventing re-computation on every render.
+    *   **Caution:** Use these hooks judiciously. Overuse can sometimes lead to more overhead than benefit. Profile your application to identify bottlenecks.
+
+*   **Bundle Size Analysis:**
+    *   **Tool:** Use `@next/bundle-analyzer` to visualize and analyze the JavaScript bundle size.
+    *   **Action:** Identify large modules or unused dependencies and optimize or remove them.
+
+---
+
+## 6. Error Handling & Edge Cases
+
+Robust error handling is essential for a stable application and good user experience.
+
+*   **Centralized Error Handling:**
+    *   Implement a consistent strategy for handling errors across API routes, Server Actions, and Client Components.
+    *   **Example (`lib/utils/errorHandler.ts` - conceptual):**
+        ```typescript
+        // lib/utils/errorHandler.ts
+        export function handleError(error: unknown, context: string) {
+            if (error instanceof Error) {
+                console.error(`[${context} Error]:`, error.message, error.stack);
+                // Optionally send to an error tracking service (e.g., Sentry, Bugsnag)
+            } else {
+                console.error(`[${context} Unknown Error]:`, error);
+            }
+        }
+        ```
+
+*   **API Route / Server Action Error Handling:**
+    *   Always wrap asynchronous operations in `try-catch` blocks.
+    *   Return appropriate HTTP status codes and informative error messages.
+    *   **Example (`app/api/users/route.ts`):**
+        ```typescript
+        // app/api/users/route.ts
+        import { NextResponse } from 'next/server';
+        import { getUsers } from '@/lib/user-storage';
+
+        export async function GET() {
+            try {
+                const users = await getUsers();
+                return NextResponse.json(users);
+            } catch (error) {
+                console.error('Failed to fetch users:', error);
+                return new NextResponse('Internal Server Error', { status: 500 });
+            }
+        }
+        ```
+
+*   **React Error Boundaries:**
+    *   Use React Error Boundaries to gracefully catch JavaScript errors in component trees and display a fallback UI instead of crashing the entire application.
+    *   **Example (`components/ErrorBoundary.tsx`):**
+        ```typescript
+        // components/ErrorBoundary.tsx
+        'use client';
+        import React, { Component, ErrorInfo, ReactNode } from 'react';
+
+        interface Props {
+            children?: ReactNode;
+        }
+
+        interface State {
+            hasError: boolean;
+        }
+
+        class ErrorBoundary extends Component<Props, State> {
+            public state: State = {
+                hasError: false
+            };
+
+            public static getDerivedStateFromError(_: Error): State {
+                return { hasError: true };
+            }
+
+            public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+                console.error("Uncaught error:", error, errorInfo);
+                // Log error to a service
+            }
+
+            public render() {
+                if (this.state.hasError) {
+                    return <h1>Sorry.. there was an error</h1>;
+                }
+                return this.props.children;
+            }
+        }
+
+        export default ErrorBoundary;
+        ```
+
+*   **Input Validation:**
+    *   Always validate user inputs on both the client-side (for immediate feedback) and server-side (for security and data integrity).
+    *   Use libraries like Zod or Yup for schema validation.
+
+---
+
+## 7. Development Workflow & Best Practices
+
+*   **Environment Variables:**
+    *   Use `.env.local` for local development environment variables.
+    *   **Client-side:** Variables prefixed with `NEXT_PUBLIC_` are exposed to the browser.
+    *   **Server-side:** Variables without `NEXT_PUBLIC_` are only available on the server.
+    *   **Security:** Never commit sensitive production secrets to version control. Use a secure secrets management service for deployment.
+
+*   **Linting and Formatting:**
+    *   **ESLint:** Configured to enforce code quality rules and catch common errors.
+    *   **Prettier:** Configured for automatic code formatting to ensure consistent style across the codebase.
+    *   **Action:** Run `npm run lint` regularly and ensure your IDE is set up to format on save.
+
+*   **Testing Strategy:**
+    *   **Unit Tests:** Focus on testing individual functions, components, or modules in isolation.
+    *   **Integration Tests:** Verify the interaction between different parts of the system (e.g., API routes interacting with storage).
+    *   **End-to-End (E2E) Tests:** Simulate user flows through the entire application (e.g., using Playwright or Cypress).
+    *   **Recommendation:** Aim for good test coverage, especially for critical business logic and authentication flows.
+
+*   **Code Reviews:**
+    *   All code changes should undergo a peer code review process.
+    *   **Focus:** Review for correctness, adherence to best practices, performance implications, security vulnerabilities, and readability.
+
+*   **Documentation as a Living Document:**
+    *   Keep this `documentation.md` file updated as the project evolves.
+    *   Add new sections for significant features, architectural decisions, or common pitfalls.
+
+---
+
+By adhering to these guidelines, we can collectively ensure the project's long-term success, maintainability, and a positive developer experience.

@@ -1,0 +1,23 @@
+## 7. Development Workflow & Best Practices
+
+*   **Environment Variables:**
+    *   Use `.env.local` for local development environment variables.
+    *   **Client-side:** Variables prefixed with `NEXT_PUBLIC_` are exposed to the browser.
+    *   **Server-side:** Variables without `NEXT_PUBLIC_` are only available on the server.
+    *   **Security:** Never commit sensitive production secrets to version control. Use a secure secrets management service for deployment.
+
+*   **Linting and Formatting:**
+    *   **Ultracite & Biome:** This project uses Ultracite, a development tool built on top of Biome (a Rust-based code formatter and linter), for automated code formatting and linting.An alternative to eslint and prettier.
+    *   **Initialization:** To set up the project for the first time, run `npx ultracite init`.
+    *   **Linting:** To check for code quality issues, run `npx ultracite lint`.
+    *   **Formatting:** To automatically format the code, run `npx ultracite format`. For applying unsafe fixes, you can use `npx ultracite format --unsafe`.
+
+*   **Testing Strategy:**
+    *   **Unit Testing:** The project's testing strategy is focused exclusively on unit tests. This approach ensures that individual functions, components, and modules are tested in isolation to verify their correctness.
+    *   **Tools:** We use Jest as the testing framework and React Testing Library for testing React components.
+    *   **Focus:** The primary goal of our unit tests is to cover critical business logic, utility functions, and component behavior.
+    *   **Recommendation:** All new features should be accompanied by corresponding unit tests to maintain code quality and prevent regressions.
+
+*   **Code Reviews:**
+    *   All code changes should undergo a peer code review process.
+    *   **Focus:** Review for correctness, adherence to best practices, performance implications, security vulnerabilities, and readability.

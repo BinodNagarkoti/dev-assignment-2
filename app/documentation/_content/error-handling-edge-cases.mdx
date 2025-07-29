@@ -1,0 +1,82 @@
+## 6. Error Handling & Edge Cases
+
+Robust error handling is essential for a stable application and good user experience.
+
+*   **Centralized Error Handling:**
+    *   Implement a consistent strategy for handling errors across API routes, Server Actions, and Client Components.
+    *   **Example (`lib/utils/errorHandler.ts` - conceptual):**
+        ```typescript
+        // lib/utils/errorHandler.ts
+        export function handleError(error: unknown, context: string) {
+            if (error instanceof Error) {
+                console.error(`[${context} Error]:`, error.message, error.stack);
+                // Optionally send to an error tracking service (e.g., Sentry, Bugsnag)
+            } else {
+                console.error(`[${context} Unknown Error]:`, error);
+            }
+        }
+        ```
+
+*   **API Route / Server Action Error Handling:**
+    *   Always wrap asynchronous operations in `try-catch` blocks.
+    *   Return appropriate HTTP status codes and informative error messages.
+    *   **Example (`app/api/users/route.ts`):**
+        ```typescript
+        // app/api/users/route.ts
+        import { NextResponse } from 'next/server';
+        import { getUsers } from '@/lib/user-storage';
+
+        export async function GET() {
+            try {
+                const users = await getUsers();
+                return NextResponse.json(users);
+            } catch (error) {
+                console.error('Failed to fetch users:', error);
+                return new NextResponse('Internal Server Error', { status: 500 });
+            }
+        }
+        ```
+
+*   **React Error Boundaries:**
+    *   Use React Error Boundaries to gracefully catch JavaScript errors in component trees and display a fallback UI instead of crashing the entire application.
+    *   **Example (`components/ErrorBoundary.tsx`):**
+        ```typescript
+        // components/ErrorBoundary.tsx
+        'use client';
+        import React, { Component, ErrorInfo, ReactNode } from 'react';
+
+        interface Props {
+            children?: ReactNode;
+        }
+
+        interface State {
+            hasError: boolean;
+        }
+
+        class ErrorBoundary extends Component<Props, State> {
+            public state: State = {
+                hasError: false
+            };
+
+            public static getDerivedStateFromError(_: Error): State {
+                return { hasError: true };
+            }
+
+            public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+                console.error("Uncaught error:", error, errorInfo);
+                // Log error to a service
+            }
+
+            public render() {
+                if (this.state.hasError) {
+                    return <h1>Sorry.. there was an error</h1>;
+                }
+                return this.props.children;
+            }
+        }
+
+        export default ErrorBoundary;
+        ```
+
+*   **Input Validation:**
+    *   Always validate user inputs on both the client-side (for immediate feedback) and server-side (for security and data integrity).

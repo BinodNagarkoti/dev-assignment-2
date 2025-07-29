@@ -1,0 +1,119 @@
+## 3. Project Structure & Key Directories
+
+The project adheres to a modular and organized structure to promote maintainability and scalability.
+
+*   **`/app`**: This directory is the heart of the Next.js App Router.
+    *   **Routing:** Each folder within `/app` defines a route segment (e.g., `/app/dashboard`, `/app/auth/login`).
+    *   `page.tsx`: Renders the primary UI for a given route. These are typically Server Components by default.
+    *   `layout.tsx`: Defines shared UI for a route segment and its children, allowing for persistent layouts.
+    *   `route.ts`: Handles API endpoints for specific routes (e.g., `GET`, `POST` requests).
+
+*   **`/components`**: Contains reusable React components.
+    *   **Categorization:** Components are grouped into logical sub-directories (e.g., `ui`, `forms`, `layout`, `shared`, `specific-feature`) to improve discoverability and organization.
+    *   **Reusability:** Components are designed to be as generic and reusable as possible across different parts of the application.
+    *   **`index.ts`:** Used within component directories to export components, simplifying imports.
+
+*   **`/lib`**: Houses core application logic, utilities, hooks, and services.
+    *   `lib/utils`: Pure utility functions (e.g., data formatting, validation, helper functions).
+    *   `lib/hooks`: Custom React hooks for encapsulating reusable stateful logic.
+    *   `lib/auth`: Centralized authentication configurations and logic, including NextAuth.js setup and token management.
+    *   `lib/types`: Centralized TypeScript interfaces and types used throughout the project.
+    *   `lib/access-token-storage.ts`, `lib/refresh-token-storage.ts`: Modules for file-based storage of access and refresh tokens.
+
+### Project Directory Structure
+
+```
+.
+├── app/
+│   ├── api/
+│   │   └── auth/
+│   │       └── [...nextauth]/
+│   │           └── route.ts
+│   ├── documentation/
+│   │   ├── _content/
+│   │   │   ├── authentication-flow-nextauthjs-with-manual-token-rotation.mdx
+│   │   │   ├── core-technologies.mdx
+│   │   │   ├── development-workflow-best-practices.mdx
+│   │   │   ├── docs.mdx
+│   │   │   ├── error-handling-edge-cases.mdx
+│   │   │   ├── introduction.mdx
+│   │   │   ├── performance-and-optimization-guidelines.mdx
+│   │   │   ├── project-overview.mdx
+│   │   │   ├── project-structure-key-directories.mdx
+│   │   │   └── rendering-methods.mdx
+│   │   ├── [slug]/
+│   │   │   └── page.tsx
+│   │   ├── doc-config.ts
+│   │   ├── layout.tsx
+│   │   └── page.tsx
+│   ├── part_two/
+│   │   ├── auth/
+│   │   │   └── login/
+│   │   │       └── page.tsx
+│   │   ├── dashboard/
+│   │   │   └── page.tsx
+│   │   └── users/
+│   │       └── page.tsx
+│   ├── favicon.ico
+│   ├── globals.css
+│   ├── layout.tsx
+│   ├── page.module.css
+│   └── page.tsx
+├── components/
+│   ├── __tests__/
+│   │   ├── AuthenticatedHeader.test.tsx
+│   │   ├── UserForm.test.tsx
+│   │   └── UserList.test.tsx
+│   ├── authenticated-header.tsx
+│   ├── dashboard.tsx
+│   ├── documentation-layout-client.tsx
+│   ├── user-form.tsx
+│   ├── user-list.tsx
+│   └── user-table.tsx
+├── lib/
+│   ├── __mocks__/
+│   │   └── server-actions.ts
+│   ├── auth/
+│   │   ├── auth.ts
+│   │   ├── config-utils.ts
+│   │   └── config.ts
+│   ├── hooks/
+│   │   ├── __tests__/
+│   │   │   └── use-users.test.tsx
+│   │   └── use-users.ts
+│   ├── providers/
+│   │   ├── dession-provider.tsx
+│   │   └── query-provider.tsx
+│   ├── types/
+│   │   ├── index.ts
+│   │   └── next-auth.d.ts
+│   ├── utils/
+│   │   ├── error-handler.ts
+│   │   ├── get-query-client.ts
+│   │   ├── logger.ts
+│   │   ├── mock-data.ts
+│   │   └── server-actions.ts
+│   ├── access-token-storage.ts
+│   ├── refresh-token-storage.ts
+│   └── user-storage.ts
+├── public/
+│   ├── file.svg
+│   ├── globe.svg
+│   ├── next.svg
+│   ├── vercel.svg
+│   └── window.svg
+├── .gitignore
+├── access_token_data.json
+├── biome.json
+├── global.d.ts
+├── jest.config.ts
+├── jest.setup.ts
+├── middleware.ts
+├── next.config.js
+├── package-lock.json
+├── package.json
+├── README.md
+├── refresh_token_data.json
+├── tsconfig.json
+├── tsconfig.test.json
+└── users.json

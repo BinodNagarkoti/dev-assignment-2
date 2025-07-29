@@ -1,0 +1,30 @@
+## Authentication Flow: NextAuth.js with Manual Token Rotation
+
+This document outlines the authentication process implemented in this project, which uses NextAuth.js with a manual token rotation strategy. This setup provides a robust and secure way to manage user sessions.
+
+### 1. Initial Login
+
+1.  **Credentials Submission**: The user enters their email and password on the login page.
+2.  **Authorization**: The `authorize` function in `lib/auth/config.ts` is called. It verifies the credentials against the stored user data.
+3.  **Token Generation**: Upon successful authorization, the `jwt` callback in `lib/auth/config.ts` is triggered. The `handleInitialSignIn` function from `lib/auth/config-utils.ts` is called to generate the initial set of tokens:
+    *   **Access Token**: A short-lived token (30 seconds) used to access protected resources.
+    *   **Refresh Token**: A long-lived token (7 days) used to obtain a new access token when the old one expires.
+4.  **Token Storage**: The access and refresh tokens are stored in `access_token_data.json` and `refresh_token_data.json` respectively.
+5.  **Session Creation**: The `session` callback in `lib/auth/config.ts` enriches the user's session with the access token and user information.
+
+### 2. Token Handling and Rotation
+
+*   **Access Token**: The access token is sent with each request to a protected route. The server validates the token to grant access.
+*   **Refresh Token**: When the access token expires, the `jwt` callback automatically triggers the `refreshAccessToken` function. This function uses the refresh token to generate a new access token without requiring the user to log in again.
+*   **Token Expiry**:
+    *   Access Token Expiry: `ACCESS_TOKEN_EXPIRY_MS` (currently 30 seconds)
+    *   Refresh Token Expiry: `REFRESH_TOKEN_EXPIRY_MS` (currently 7 days)
+
+### 3. Middleware and Route Protection
+
+*   The middleware in `middleware.ts` intercepts requests to protected routes.
+*   It uses the `getToken` function from `next-auth/jwt` to check for a valid session token.
+*   If the user is not authenticated, they can be redirected to the login page (this is currently commented out but can be enabled).
+*   If an authenticated user tries to access the login page, they are redirected to the dashboard.
+
+This authentication flow ensures that user sessions are managed securely, with automatic token rotation to minimize the risk of session hijacking.

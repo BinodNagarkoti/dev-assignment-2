@@ -1,0 +1,181 @@
+## 5. Performance and Optimization Guidelines
+
+Optimizing performance is crucial for a smooth user experience. This guide provides actionable strategies tailored to this project.
+
+---
+
+### 1. Server Components & Data Fetching
+
+**Principle:** Leverage Server Components for data fetching to reduce client-side bundle size and improve initial load times.
+
+**Project Implementation:**
+The application correctly uses `async` Server Components with `prefetchQuery` in pages like `app/part_two/dashboard/page.tsx` and `app/part_two/users/page.tsx`. This pattern is highly efficient as it fetches data on the server and passes it to the client, avoiding client-side loading states.
+
+**Recommendation:**
+Continue this pattern for all new pages that require server-side data.
+
+```typescript
+// app/part_two/users/page.tsx
+import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
+import UserList from "@/components/user-list";
+import { getUsers } from "@/lib/utils/server-actions";
+import { getQueryClient } from "@/lib/utils/get-query-client";
+
+export default async function page() {
+	const queryClient = getQueryClient();
+
+	await queryClient.prefetchQuery({
+		queryKey: ["users"],
+		queryFn: () => getUsers(1, 10, { status: "all" }),
+	});
+
+	return (
+		<HydrationBoundary state={dehydrate(queryClient)}>
+			<UserList />
+		</HydrationBoundary>
+	);
+}
+```
+
+---
+
+### 2. Component Memoization
+
+**Principle:** Use `React.memo` and `useCallback` to prevent unnecessary re-renders of components, especially those that are part of a list or receive complex props.
+
+**Project Opportunity:**
+In `components/user-list.tsx`, the `UserTable` component is re-rendered whenever the `UserList` component's state changes (e.g., when the modal is opened). This is inefficient.
+
+**Recommendation:**
+Wrap `UserTable` in `React.memo` and the `onEdit` handler in `useCallback`.
+
+```typescript
+// components/user-list.tsx
+"use client";
+import { useCallback, useState } from "react";
+import UserTable from "@/components/user-table";
+// ... other imports
+
+const UserList: React.FC = () => {
+    const [isModalVisible, setIsModalVisible] = useState(false);
+    const [editingUser, setEditingUser] = useState<User | undefined>(undefined);
+
+    const handleEditUser = useCallback((user: User) => {
+        setEditingUser(user);
+        setIsModalVisible(true);
+    }, []);
+
+    // ... other handlers wrapped in useCallback
+
+    return (
+        <div>
+            <UserTable onEdit={handleEditUser} />
+            {/* ... modal */}
+        </div>
+    );
+};
+
+export default UserList;
+
+// components/user-table.tsx
+import React from "react";
+// ... other imports
+
+const UserTable: React.FC<UserTableProps> = ({ onEdit }) => {
+    // ... component logic
+};
+
+export default React.memo(UserTable);
+```
+
+---
+
+### 3. Dynamic Imports for UI Components
+
+**Principle:** Dynamically import components that are not visible on the initial page load to reduce the main bundle size.
+
+**Project Opportunity:**
+The `Modal` and `UserForm` components in `user-list.tsx` are only needed when a user clicks "Add User" or "Edit".
+
+**Recommendation:**
+Use `next/dynamic` to load these components on demand.
+
+```typescript
+// components/user-list.tsx
+"use client";
+import { useState } from "react";
+import dynamic from "next/dynamic";
+import { Button, Spin } from "antd";
+
+const UserForm = dynamic(() => import("@/components/user-form"), {
+    loading: () => <Spin />,
+});
+const Modal = dynamic(() => import("antd/lib/modal"), { ssr: false });
+
+
+const UserList: React.FC = () => {
+    const [isModalVisible, setIsModalVisible] = useState(false);
+    // ...
+    return (
+        <div>
+            {/* ... */}
+            {isModalVisible && (
+                <Modal /* ... */>
+                    <UserForm /* ... */ />
+                </Modal>
+            )}
+        </div>
+    );
+};
+```
+
+---
+
+### 4. React Query Optimizations
+
+**Principle:** Fine-tune React Query's data fetching behavior to improve responsiveness and reduce network requests.
+
+**Project Opportunity:**
+The `useUsers` hook re-fetches data whenever a filter changes. For text inputs, this can lead to excessive API calls.
+
+**Recommendation:**
+-   **Set `staleTime`:** For data that doesn't change frequently, set a `staleTime` to prevent unnecessary re-fetches.
+-   **Debounce Filters:** For search inputs, debounce the filter value to only trigger a re-fetch after the user has stopped typing.
+
+```typescript
+// lib/hooks/use-users.ts
+import { useQuery } from "@tanstack/react-query";
+
+export function useUsers(page: number, pageSize: number, filters: UserFilters) {
+	return useQuery<UsersResponse, Error>({
+		queryKey: [USERS_QUERY_KEY, page, pageSize, filters],
+		queryFn: () => getUsers(page, pageSize, filters),
+		placeholderData: (previousData) => previousData,
+		staleTime: 1000 * 60, // 1 minute
+	});
+}
+```
+
+---
+
+### 5. Bundle Size Analysis
+
+**Principle:** Regularly analyze your application's bundle size to identify large or unused dependencies.
+
+**Recommendation:**
+Use the `@next/bundle-analyzer` package to generate a visual report of your bundle.
+
+1.  **Install:** `npm install @next/bundle-analyzer`
+2.  **Configure `next.config.js`:**
+    ```javascript
+    const withBundleAnalyzer = require('@next/bundle-analyzer')({
+      enabled: process.env.ANALYZE === 'true',
+    });
+
+    module.exports = withBundleAnalyzer({
+      // ... your next.js config
+    });
+    ```
+3.  **Run Analysis:**
+    ```bash
+    ANALYZE=true npm run build

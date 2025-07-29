@@ -1,36 +1,86 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Project Title: User Management Dashboard
+
+## Introduction
+
+This project is a full-stack web application built with Next.js, designed to serve as a comprehensive dashboard for managing users. It features a robust authentication system, a user management interface with CRUD functionality, and detailed project documentation. The application is built with a focus on performance, scalability, and best practices in modern web development.
+
+---
+
+## Requirements
+
+To run this project locally, you will need the following installed on your system:
+
+*   **Node.js:** Version 20.x or higher
+*   **pnpm:** This project uses `pnpm` as the package manager. You can install it globally by running `npm install -g pnpm`.
+
+---
 
 ## Getting Started
 
-First, run the development server:
+Follow these steps to get the project up and running on your local machine.
+
+### 1. Fork and Clone the Repository
+
+First, fork the repository to your own GitHub account. Then, clone your forked repository to your local machine:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone https://github.com/YOUR_USERNAME/proj2.git
+cd proj2
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. Install Dependencies
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Install the project dependencies using `pnpm`:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+pnpm install
+```
 
-## Learn More
+### 3. Set Up Environment Variables
 
-To learn more about Next.js, take a look at the following resources:
+Create a `.env.local` file in the root of the project by copying the example file:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+cp .env.example .env.local
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Update the variables in `.env.local` with your own configuration. At a minimum, you will need to provide a `NEXTAUTH_SECRET`. You can generate one using the following command:
 
-## Deploy on Vercel
+```bash
+openssl rand -base64 32
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### 4. Run the Application
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Start the development server:
+
+```bash
+pnpm run dev
+```
+
+The application will be available at [http://localhost:3000](http://localhost:3000).
+
+---
+
+## Available Scripts
+
+This project includes several scripts to help with development:
+
+*   `pnpm run dev`: Starts the development server.
+*   `pnpm run build`: Builds the application for production.
+*   `pnpm run start`: Starts the production server.
+*   `pnpm run lint`: Lints the code using Biome.
+*   `pnpm run format`: Formats the code using Biome.
+*   `pnpm run test`: Runs the unit tests using Jest.
+
+---
+
+## Core Technologies
+
+*   **Next.js:** React framework for building full-stack applications.
+*   **TypeScript:** Strongly typed superset of JavaScript.
+*   **NextAuth.js:** Authentication for Next.js applications.
+*   **React Query:** Data fetching and state management.
+*   **Ant Design:** UI component library.
+*   **Ultracite & Biome:** Code linter and formatter an alternative to eslint and prettier.
+*   **Jest & React Testing Library:** For unit testing.
