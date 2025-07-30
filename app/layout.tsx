@@ -4,7 +4,7 @@ import "./globals.css";
 import { AntdRegistry } from "@ant-design/nextjs-registry";
 import { Suspense } from "react";
 import AuthenticatedHeader from "@/components/authenticated-header";
-import { SessionProvider } from "@/lib/providers/dession-provider";
+import { SessionProvider } from "@/lib/providers/session-provider";
 import { QueryProvider } from "@/lib/providers/query-provider";
 
 const inter = Inter({
