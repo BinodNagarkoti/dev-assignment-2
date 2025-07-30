@@ -1,0 +1,37 @@
+.container {
+	min-height: 100vh;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.card {
+	width: 400px;
+	box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+	border-radius: 12px;
+}
+
+.titleContainer {
+	text-align: center;
+	margin-bottom: 24px;
+}
+
+.title {
+	color: #1890ff;
+	margin-bottom: 8px;
+}
+
+.submitButton {
+	height: 48px;
+	font-size: 16px;
+}
+
+.demoCredentials {
+	margin-top: 24px;
+	text-align: center;
+}
+
+.demoCredentialsText {
+	font-size: 12px;
+}

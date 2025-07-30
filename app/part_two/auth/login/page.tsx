@@ -4,7 +4,6 @@ import { Form, type InputProps, notification, Typography } from "antd";
 import type { PasswordProps } from "antd/es/input";
 import { useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
-
 import {
 	FlexbleCard as Card,
 	CustomFormInput,
@@ -13,55 +12,65 @@ import {
 	useFormHandler,
 	validatePassword,
 } from "org-st-demo-ui";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import styles from "./login.module.css";
 
 const { Title, Text } = Typography;
-const TRYAGAINTEXT = "Please try again, to signin";
+
+const ERROR_MESSAGES = {
+	INVALID_EMAIL: "Please enter a correct email id like eg: john.doe@gmail.com",
+	INVALID_CREDENTIALS: "Invalid credentials. Please try again.",
+	GENERIC_ERROR: "An error occurred. Please try again.",
+	UNKNOWN_ERROR: "An unknown error occurred",
+	LOGIN_FAILED: "Login Failed",
+	CREDENTIALS_SIGNIN: "CredentialsSignin",
+	TRY_AGAIN: "Please try again, to signin",
+};
+
+const REDIRECT_URL = "/part_two/dashboard";
+
 export default function LoginPage() {
 	const [error, setError] = useState<string>("");
 	const searchParams = useSearchParams();
-	const onFinish = async (values: { email: string; password: string }) => {
-		try {
-			if (!isValidEmail(values.email)) {
-				throw new Error(
-					"Please enter an correct email id like eg: john.doe@gmail.com"
-				);
-			}
-			const result = await signIn("credentials", {
-				email: values.email,
-				password: values.password,
-				redirect: true,
-				callbackUrl: "/part_two/dashboard",
-			});
 
-			if (result?.error) {
-				throw new Error("Invalid credentials. Please try again.");
-			}
-			// else {
-			//     // Get session to verify login
-			//     const session = await getSession();
-			//     if (session) {
-			//         router.push('/part_two/dashboard');
-			//     }
-			// }
-		} catch (err) {
-			setError(
-				err instanceof Error
-					? err.message
-					: "An error occurred. Please try again."
-			);
+	const showErrorNotification = useCallback(
+		(message: string, description: string) => {
 			notification.error({
-				message: "Login Failed",
-				description:
-					err instanceof Error
-						? err.message
-						: "An error occurred. Please try again.",
+				message,
+				description,
 			});
-		}
-	};
+		},
+		[]
+	);
+
+	const onFinish = useCallback(
+		async (values: { email: string; password: string }) => {
+			try {
+				if (!isValidEmail(values.email)) {
+					throw new Error(ERROR_MESSAGES.INVALID_EMAIL);
+				}
+				const result = await signIn("credentials", {
+					email: values.email,
+					password: values.password,
+					redirect: true,
+					callbackUrl: REDIRECT_URL,
+				});
+
+				if (result?.error) {
+					throw new Error(ERROR_MESSAGES.INVALID_CREDENTIALS);
+				}
+			} catch (err) {
+				const errorMessage =
+					err instanceof Error ? err.message : ERROR_MESSAGES.GENERIC_ERROR;
+				setError(errorMessage);
+				showErrorNotification(ERROR_MESSAGES.LOGIN_FAILED, errorMessage);
+			}
+		},
+		[showErrorNotification]
+	);
+
 	const {
 		values,
-		errors: _errors,
 		setFieldError,
 		isSubmitting,
 		handleSubmit,
@@ -70,16 +79,16 @@ export default function LoginPage() {
 	} = useFormHandler({
 		initialValues: { email: "", password: "" },
 		onSubmit: onFinish,
-		onError: (_error: unknown) => {
-			notification.error({
-				message: "Login Failed",
-				description:
+		onError: useCallback(
+			(_error: unknown) => {
+				const errorMessage =
 					_error instanceof Error
 						? _error.message
-						: "An unknown error occurred",
-			});
-			// console.error("Login failed:", error);
-		},
+						: ERROR_MESSAGES.UNKNOWN_ERROR;
+				showErrorNotification(ERROR_MESSAGES.LOGIN_FAILED, errorMessage);
+			},
+			[showErrorNotification]
+		),
 	});
 
 	const [form] = Form.useForm();
@@ -87,39 +96,42 @@ export default function LoginPage() {
 	useEffect(() => {
 		registerForm(form);
 	}, [form, registerForm]);
+
 	useEffect(() => {
 		const credentialSigninError = searchParams?.get("error");
-		if (credentialSigninError && credentialSigninError.length > 0) {
-			notification.error({
-				message: "CredentialsSignin",
-				description:
-					credentialSigninError === "CredentialsSignin"
-						? TRYAGAINTEXT
-						: "An unknown error occurred",
-			});
+		if (credentialSigninError === ERROR_MESSAGES.CREDENTIALS_SIGNIN) {
+			showErrorNotification(
+				ERROR_MESSAGES.CREDENTIALS_SIGNIN,
+				ERROR_MESSAGES.TRY_AGAIN
+			);
 		}
-	}, [searchParams]);
+	}, [searchParams, showErrorNotification]);
+
+	const handlePasswordChange = useCallback(
+		(e: React.ChangeEvent<HTMLInputElement>) => {
+			const { value } = e.target;
+			const { isValid, errors } = validatePassword(value, {
+				minLength: 6,
+				requireUppercase: false,
+				requireLowercase: false,
+				requireNumbers: true,
+				requireSpecialChars: false,
+			});
+
+			setFieldError(
+				"password",
+				!isValid && errors.length > 0 ? errors.join(", ") : null
+			);
+			setFieldValue("password", value);
+		},
+		[setFieldError, setFieldValue]
+	);
 
 	return (
-		<div
-			style={{
-				minHeight: "100vh",
-				display: "flex",
-				alignItems: "center",
-				justifyContent: "center",
-				background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-			}}
-		>
-			<Card
-				style={{
-					width: 400,
-					boxShadow: "0 10px 25px rgba(0,0,0,0.1)",
-					borderRadius: "12px",
-				}}
-				title="Standard Card"
-			>
-				<div style={{ textAlign: "center", marginBottom: 24 }}>
-					<Title level={2} style={{ color: "#1890ff", marginBottom: 8 }}>
+		<div className={styles.container}>
+			<Card className={styles.card} title="Standard Card">
+				<div className={styles.titleContainer}>
+					<Title className={styles.title} level={2}>
 						Welcome Back
 					</Title>
 					<Text type="secondary">Sign in to your account to continue</Text>
@@ -137,6 +149,7 @@ export default function LoginPage() {
 							prefix: <MailOutlined />,
 							onChange: (e: React.ChangeEvent<HTMLInputElement>) =>
 								setFieldValue("email", e.target.value),
+							placeholder: "Enter your email",
 						}}
 						label="Enter your email"
 						name="email"
@@ -147,40 +160,23 @@ export default function LoginPage() {
 						inputProps={{
 							value: values.password,
 							prefix: <LockOutlined />,
-							onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
-								const {
-									isValid,
-									score: _score,
-									errors,
-								} = validatePassword(e.target.value, {
-									minLength: 6,
-									requireUppercase: false,
-									requireLowercase: false,
-									requireNumbers: true,
-									requireSpecialChars: false,
-								});
-								if (!isValid && errors.length > 0) {
-									setFieldError("password", errors.join(", "));
-								} else {
-									setFieldError("password", null);
-								}
-								setFieldValue("password", e.target.value);
-							},
+							onChange: handlePasswordChange,
+							placeholder: "Enter your password",
 						}}
 						name="password"
 						type="password"
 					/>
 					<SubmitButton
+						className={styles.submitButton}
 						isSubmittingFailed={error.length > 0}
 						loading={isSubmitting}
-						style={{ height: 48, fontSize: 16 }}
 					>
 						Sign In
 					</SubmitButton>
 				</Form>
 
-				<div style={{ marginTop: 24, textAlign: "center" }}>
-					<Text style={{ fontSize: 12 }} type="secondary">
+				<div className={styles.demoCredentials}>
+					<Text className={styles.demoCredentialsText} type="secondary">
 						Demo Credentials:
 						<br />
 						Admin: superadmin@gmail.com / superadmin@12345
